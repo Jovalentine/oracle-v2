@@ -1,0 +1,213 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+/* =========================================
+   1. DYNAMIC THEME VARIABLES
+   ========================================= */
+
+/* Default Dark Theme */
+:root {
+    --bg-color: #0b1120;
+    --card-bg: #172033;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #bde90e;
+    --accent-gradient: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --nav-bg: rgba(11, 17, 32, 0.9);
+}
+
+/* Light Theme Overrides */
+body.light-theme {
+    --bg-color: #f8fafc; 
+    --card-bg: #ffffff; 
+    --text-main: #0f172a; 
+    --text-muted: #64748b; 
+    --accent: #0284c7; /* Darker blue for better visibility on white */
+    --accent-gradient: linear-gradient(135deg, #0284c7, #6d28d9);
+    --card-border: rgba(0, 0, 0, 0.15);
+    --nav-bg: rgba(248, 250, 252, 0.95);
+}
+
+/* =========================================
+   2. GLOBAL STYLES (Applying the themes)
+   ========================================= */
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    /* Smooth transition for theme switching */
+    transition: background-color 0.4s ease, color 0.4s ease; 
+}
+
+/* Ensure your header uses the dynamic nav background */
+.header {
+    background-color: var(--nav-bg);
+    border-bottom: 1px solid var(--card-border);
+    transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+/* Ensure all cards use the dynamic card background */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+/* Update inputs for light mode contrast */
+input, select {
+    background-color: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+}
+body.light-theme input, body.light-theme select {
+    background-color: rgba(0,0,0,0.02);
+}
+
+/* ================= HEADER (Glass) ================= */
+.header {
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--card-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-links a {
+  color: var(--text-main);
+  margin-left: 20px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.nav-links a:hover { color: var(--accent); }
+
+/* Theme Toggle Button */
+#theme-toggle {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-left: 20px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+#theme-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ================= CONTAINERS & CARDS ================= */
+.container { max-width: 800px; margin: 50px auto; padding: 20px; }
+
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 40px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-glow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 210, 255, 0.2);
+}
+
+/* ================= FORM ELEMENTS ================= */
+label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+input {
+  width: 100%;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
+  transform: translateY(-2px);
+}
+
+/* ================= BUTTONS ================= */
+button[type="submit"], .btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 165, 233, 0.4);
+}
+
+button[type="submit"]:hover, .btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 165, 233, 0.6);
+}
+
+/* ================= ANIMATIONS ================= */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ================= ALERTS ================= */
+.flash {
+  padding: 15px; margin-bottom: 25px; border-radius: 8px;
+  text-align: center; font-weight: 600; animation: slideDown 0.5s ease;
+}
+.flash.error { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; }
+.flash.success { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; color: #22c55e; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

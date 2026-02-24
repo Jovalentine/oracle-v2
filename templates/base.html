@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Oracle Forensic System{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script defer src="{{ url_for('static', filename='js/ui.js') }}"></script>
+</head>
+<body>
+
+  <div class="header">
+    <h2>ORACLE FORENSIC v2.0</h2>
+    <div class="nav-links">
+      {% if session.get('user') %}
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('logout') }}">Logout ({{ session['user'] }})</a>
+      {% endif %}
+      <button id="theme-toggle">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="container reveal">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <script>
+    const toggleBtn = document.getElementById('theme-toggle');
+    const body = document.body;
+
+    if (localStorage.getItem('theme') === 'light') {
+      body.classList.add('light-theme');
+      toggleBtn.innerText = '🌙 Dark Mode';
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      body.classList.toggle('light-theme');
+      if (body.classList.contains('light-theme')) {
+        localStorage.setItem('theme', 'light');
+        toggleBtn.innerText = '🌙 Dark Mode';
+      } else {
+        localStorage.setItem('theme', 'dark');
+        toggleBtn.innerText = '☀️ Light Mode';
+      }
+    });
+  </script>
+</body>
+</html>

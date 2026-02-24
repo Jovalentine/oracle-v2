@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}New Video Investigation - Oracle Forensic{% endblock %}
+
+{% block content %}
+<div class="card reveal" style="max-width: 500px; margin: 0 auto;">
+    <h3 style="text-align: center; margin-bottom: 25px; color: #8b5cf6;">Upload Video Evidence</h3>
+
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        <label>Select Accident Dashcam/CCTV (.mp4, .mov)</label>
+        <div class="file-drop-area">
+            <input type="file" name="video" accept="video/mp4,video/x-m4v,video/*" required id="fileInput">
+        </div>
+
+        <button type="submit" class="btn" id="analyzeBtn" style="margin-top: 20px; background: linear-gradient(135deg, #8b5cf6, #3b82f6);">
+            Initiate Video AI Analysis
+        </button>
+    </form>
+
+    <div id="scanner" style="display: none; text-align: center; margin-top: 30px;">
+        <div class="scan-line" style="background: linear-gradient(90deg, #8b5cf6, #3b82f6);"></div>
+        <p style="color: #8b5cf6; font-weight: 600; margin-top: 15px;">
+            Extracting keyframes & running temporal reconstruction...
+        </p>
+    </div>
+</div>
+
+<style>
+    .scan-line {
+        height: 4px; width: 100%; border-radius: 2px;
+        animation: scan 1.5s infinite ease-in-out;
+        box-shadow: 0 0 15px #8b5cf6;
+    }
+    @keyframes scan {
+        0% { transform: scaleX(0); opacity: 0.5; }
+        50% { transform: scaleX(1); opacity: 1; }
+        100% { transform: scaleX(0); opacity: 0.5; }
+    }
+</style>
+
+<script>
+    const form = document.getElementById('uploadForm');
+    const btn = document.getElementById('analyzeBtn');
+    const scanner = document.getElementById('scanner');
+
+    form.addEventListener('submit', function() {
+        btn.style.display = 'none';
+        scanner.style.display = 'block';
+    });
+</script>
+{% endblock %}

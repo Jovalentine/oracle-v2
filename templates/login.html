@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Oracle Forensic{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3 style="text-align: center;">Investigator Login</h3>
+    <form method="POST" action="{{ url_for('login') }}">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Enter ID" required>
+        
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Enter Password" required>
+        
+        <button type="submit" style="margin-top: 15px;">Login to System</button>
+    </form>
+    
+    <p style="text-align: center; margin-top: 20px;">
+        Don't have an account? <a href="{{ url_for('register') }}" style="color: #0ea5e9;">Register here</a>.
+    </p>
+</div>
+{% endblock %}

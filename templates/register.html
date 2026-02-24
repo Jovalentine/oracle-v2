@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Oracle Forensic{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3 style="text-align: center;">Register Investigator</h3>
+    <form method="POST" action="{{ url_for('register') }}">
+        <label>Choose Username</label>
+        <input type="text" name="username" placeholder="Create an ID" required>
+        
+        <label>Create Password</label>
+        <input type="password" name="password" placeholder="Create secure password" required>
+
+        <label>Confirm Password</label>
+        <input type="password" name="confirm_password" placeholder="Type password again" required>
+        
+        <button type="submit" style="margin-top: 15px;">Register Account</button>
+    </form>
+    
+    <p style="text-align: center; margin-top: 20px;">
+        Already registered? <a href="{{ url_for('login') }}" style="color: #0ea5e9;">Back to Login</a>.
+    </p>
+</div>
+{% endblock %}

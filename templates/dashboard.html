@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Oracle Forensic{% endblock %}
+
+{% block content %}
+<div class="reveal">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
+        <h2 style="margin: 0;">Investigator Dashboard</h2>
+        <div style="display: flex; gap: 15px;">
+            <a href="{{ url_for('new_case') }}" class="btn" style="width: auto; padding: 12px 24px;">
+                📷 New Image Case
+            </a>
+            <a href="{{ url_for('new_video_case') }}" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">
+                🎥 New Video Case
+            </a>
+        </div>
+    </div>
+
+    {% if cases %}
+        <div class="case-grid">
+            {% for case in cases %}
+                {% set analysis = case.analysis if case.analysis else {} %}
+                {% set summary = analysis.scene_summary | default('No AI summary data available for this case.') %}
+                {% set severity = analysis.severity_score | default(0) | int %}
+                
+                <div class="card case-card">
+                    <div class="case-header">
+                        <span class="case-id">#{{ case.case_id }}</span>
+                        <span class="case-date">{{ case.created_at.strftime('%Y-%m-%d') }}</span>
+                    </div>
+                    
+                    <h3 style="margin: 10px 0; color: var(--accent);">
+                        {{ analysis.collision_type | default('Unknown Vector') }}
+                    </h3>
+                    
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; min-height: 40px;">
+                        {{ summary[:100] }}{% if summary|length > 100 %}...{% endif %}
+                    </p>
+
+                    <div class="tags">
+                        <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-main);">
+                            {{ case.type | default('IMAGE') | upper }}
+                        </span>
+                        <span class="tag">Severity: {{ severity }}/100</span>
+                        {% if analysis.pedestrians_detected %}
+                            <span class="tag warning">Pedestrian Alert</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: row; gap: 10px; margin-top: auto; padding-top: 20px;">
+                        <a href="{{ url_for('view_case', case_id=case.case_id) }}" class="btn" style="flex: 1; margin: 0; display: flex; justify-content: center; align-items: center; background: transparent; border: 1px solid var(--accent); color: var(--accent);">
+                            Open Dossier
+                        </a>
+                        
+                        <form action="{{ url_for('delete_case', case_id=case.case_id) }}" method="POST" onsubmit="return confirm('WARNING: Are you sure you want to permanently delete this forensic case and its evidence?');" style="margin: 0; display: flex;">
+                            <button type="submit" class="btn" style="margin: 0; display: flex; justify-content: center; align-items: center; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 0 20px; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='#ef4444'; this.style.color='white';" onmouseout="this.style.background='rgba(239, 68, 68, 0.1)'; this.style.color='#ef4444';" title="Delete Case">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
+                    
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card" style="text-align: center; padding: 60px 20px;">
+            <h3 style="margin-bottom: 10px;">No investigations found</h3>
+            <p style="color: var(--text-muted); margin-bottom: 25px;">Upload a crash scene image or video to begin your first AI forensic analysis.</p>
+            
+            <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                <a href="{{ url_for('new_case') }}" class="btn" style="width: 200px;">📷 Image Case</a>
+                <a href="{{ url_for('new_video_case') }}" class="btn" style="width: 200px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">🎥 Video Case</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .case-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 25px;
+    }
+    .case-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 25px;
+    }
+    .case-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 15px;
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 10px;
+    }
+    .case-id { font-family: monospace; font-weight: bold; color: var(--text-main); }
+    
+    .tags { display: flex; gap: 10px; flex-wrap: wrap; }
+    .tag {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+        background: rgba(14, 165, 233, 0.15);
+        color: var(--accent);
+        border-radius: 6px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .tag.warning {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+</style>
+{% endblock %}

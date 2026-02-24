@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Case #{{ case.case_id }} - Oracle Forensic{% endblock %}
+
+{% block content %}
+{% set analysis = case.analysis if case.analysis else {} %}
+{% set severity = analysis.severity_score|default(0)|int %}
+
+<div class="reveal">
+    <div class="report-header">
+        <div>
+            <h2 style="margin: 0; color: var(--accent);">Forensic Dossier: #{{ case.case_id }}</h2>
+            <span style="font-family: monospace; color: var(--text-muted);">
+                Generated: {{ case.created_at.strftime('%Y-%m-%d %H:%M:%S') }} | Investigator: {{ case.user }} | Evidence: {{ case.type | upper }}
+            </span>
+        </div>
+        <div class="severity-badge">
+            Severity: {{ severity }}/100
+        </div>
+    </div>
+
+    <div class="report-grid">
+        
+        <div class="card evidence-col">
+            <h3 style="margin-top: 0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Primary Evidence</h3>
+            
+            <div class="image-container">
+                {% if case.type == 'video' %}
+                    <video controls style="width: 100%; border-radius: 8px; border: 2px solid var(--card-border); box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);">
+                        <source src="{{ url_for('uploaded_file', filename=case.filename) }}" type="video/mp4">
+                        <source src="{{ url_for('uploaded_file', filename=case.filename) }}" type="video/quicktime">
+                        Your browser does not support the video tag.
+                    </video>
+                {% else %}
+                    <img src="{{ url_for('uploaded_file', filename=case.filename) }}" alt="Crash Scene">
+                {% endif %}
+            </div>
+            
+            <div class="telemetry-box" style="margin-top: 20px;">
+                <strong>Collision Vector:</strong> <span style="color: var(--accent);">{{ analysis.collision_type | default('Unknown') }}</span><br>
+                <strong>Pedestrians Involved:</strong> 
+                <span style="color: {% if analysis.pedestrians_detected %}#ef4444{% else %}#22c55e{% endif %};">
+                    {{ analysis.pedestrians_detected | default('False') }}
+                </span><br>
+                <strong>Plates Detected:</strong> 
+                {% if analysis.license_plates_detected %}
+                    <span style="font-family: monospace;">{{ analysis.license_plates_detected | join(', ') }}</span>
+                {% else %}
+                    <span style="color: var(--text-muted);">None visible</span>
+                {% endif %}
+                
+                {% if case.type == 'video' and analysis.video_meta %}
+                <br><br>
+                <strong>Video Telemetry:</strong><br>
+                <span style="color: var(--text-muted); font-size: 0.9rem;">
+                    Analyzed {{ analysis.video_meta.frames_analyzed }} temporal keyframes @ {{ analysis.video_meta.fps }} source FPS.
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card analysis-col">
+            <h3 style="margin-top: 0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">AI Reconstruction</h3>
+            
+            <p class="summary-text">"{{ analysis.scene_summary | default('No summary data available.') }}"</p>
+
+            {% if case.type == 'video' and analysis.timeline %}
+                <h4 style="margin-top: 25px; color: #8b5cf6;">Chronological Event Timeline</h4>
+                <div class="telemetry-box" style="margin-bottom: 20px;">
+                    <table style="width: 100%; text-align: left; font-size: 0.9rem; border-collapse: collapse;">
+                        <tr style="border-bottom: 1px solid var(--card-border); color: var(--text-muted);">
+                            <th style="padding-bottom: 8px; width: 30%;">Time (sec)</th>
+                            <th style="padding-bottom: 8px;">Event Detected</th>
+                        </tr>
+                        {% for event in analysis.timeline %}
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <td style="padding: 10px 0; color: #8b5cf6; font-weight: bold; font-family: monospace;">T+{{ event.timestamp_sec }}s</td>
+                            <td style="padding: 10px 0;">{{ event.event }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            {% endif %}
+
+            <h4 style="margin-top: 25px; color: var(--accent);">Fault Allocation</h4>
+            <div class="fault-list">
+                {% if analysis.vehicles_involved %}
+                    {% for vehicle in analysis.vehicles_involved %}
+                    <div class="fault-item">
+                        <div class="fault-header">
+                            <span style="text-transform: capitalize; font-weight: bold;">{{ vehicle.type }}</span>
+                            <span style="font-family: monospace;">{{ vehicle.fault_percentage }}%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: {{ vehicle.fault_percentage }}%;"></div>
+                        </div>
+                        <p class="reasoning-text">{{ vehicle.reasoning }}</p>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color: var(--text-muted);">No fault allocation data available.</p>
+                {% endif %}
+            </div>
+
+            <h4 style="margin-top: 25px; color: var(--accent);">Investigative Narrative</h4>
+            <div class="narrative-box">
+                {{ analysis.investigative_narrative | default('No narrative available.') | replace('\n', '<br><br>') | safe }}
+            </div>
+            
+            <a href="{{ url_for('export_pdf', case_id=case.case_id) }}" class="btn pdf-btn">
+                ⬇️ Download Official PDF Report
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 0 10px; }
+    
+    /* Dynamic Severity Colors based on safe severity variable */
+    .severity-badge {
+        padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 1.1rem;
+        transition: all 0.3s ease;
+        background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid #22c55e;
+    }
+    {% if severity > 40 %}
+    .severity-badge { background: rgba(234, 179, 8, 0.2); color: #eab308; border-color: #eab308; }
+    {% endif %}
+    {% if severity > 75 %}
+    .severity-badge { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+    {% endif %}
+    
+    .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+    @media(max-width: 768px) { .report-grid { grid-template-columns: 1fr; } }
+
+    .image-container img {
+        width: 100%; border-radius: 8px; border: 2px solid var(--card-border);
+        transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .image-container img:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 20px var(--accent);
+        border-color: var(--accent);
+    }
+    
+    .telemetry-box, .narrative-box {
+        background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;
+        border: 1px solid var(--card-border); line-height: 1.6;
+        transition: background 0.3s;
+    }
+    .telemetry-box:hover, .narrative-box:hover { background: rgba(0,0,0,0.4); }
+    .light-theme .telemetry-box, .light-theme .narrative-box { background: rgba(255,255,255,0.7); }
+    
+    .summary-text { font-style: italic; color: var(--text-muted); font-size: 1.1rem; border-left: 3px solid var(--accent); padding-left: 15px;}
+    
+    .fault-item { margin-bottom: 20px; }
+    .fault-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .progress-track {
+        width: 100%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden;
+        border: 1px solid var(--card-border);
+    }
+    .light-theme .progress-track { background: rgba(0,0,0,0.1); }
+    
+    .progress-fill {
+        height: 100%; 
+        background: linear-gradient(90deg, #0ea5e9, #8b5cf6, #ec4899);
+        background-size: 200% 200%;
+        animation: gradientShift 3s ease infinite;
+        border-radius: 5px; box-shadow: 0 0 10px var(--accent);
+        transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    .reasoning-text { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; }
+    
+    .pdf-btn {
+        margin-top: 25px; display: block; text-align: center;
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        border: 1px solid var(--accent); color: var(--accent);
+    }
+    .pdf-btn:hover { background: var(--accent); color: white; box-shadow: 0 0 15px var(--accent); }
+</style>
+{% endblock %}

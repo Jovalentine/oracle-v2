@@ -1,0 +1,15 @@
+# Environments
+jill/
+venv/
+env/
+__pycache__/
+
+# Secrets
+.env
+
+# Local Uploads
+data/
+*.pdf
+*.jpg
+*.png
+*.mp4

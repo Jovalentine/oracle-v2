@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}New Investigation - Oracle Forensic{% endblock %}
+
+{% block content %}
+<div class="card reveal" style="max-width: 500px; margin: 0 auto;">
+    <h3 style="text-align: center; margin-bottom: 25px;">Upload Evidence</h3>
+
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        <label>Select Accident Image</label>
+        <div class="file-drop-area">
+            <input type="file" name="image" accept="image/*" required id="fileInput">
+        </div>
+
+        <button type="submit" class="btn" id="analyzeBtn" style="margin-top: 20px;">
+            Initiate AI Analysis
+        </button>
+    </form>
+
+    <div id="scanner" style="display: none; text-align: center; margin-top: 30px;">
+        <div class="scan-line"></div>
+        <p style="color: var(--accent); font-weight: 600; margin-top: 15px;">
+            Gemini is analyzing scene topology...
+        </p>
+    </div>
+</div>
+
+<style>
+    /* Simple CSS for the scanner effect */
+    .scan-line {
+        height: 4px;
+        width: 100%;
+        background: var(--accent-gradient);
+        border-radius: 2px;
+        animation: scan 1.5s infinite ease-in-out;
+        box-shadow: 0 0 15px var(--accent);
+    }
+    @keyframes scan {
+        0% { transform: scaleX(0); opacity: 0.5; }
+        50% { transform: scaleX(1); opacity: 1; }
+        100% { transform: scaleX(0); opacity: 0.5; }
+    }
+</style>
+
+<script>
+    // Simple script to show loader on submit
+    const form = document.getElementById('uploadForm');
+    const btn = document.getElementById('analyzeBtn');
+    const scanner = document.getElementById('scanner');
+
+    form.addEventListener('submit', function() {
+        btn.style.display = 'none'; // Hide button
+        scanner.style.display = 'block'; // Show scanner
+    });
+</script>
+{% endblock %}
