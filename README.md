@@ -1,3 +1,4 @@
+Markdown
 # 👁️ Oracle Forensic System v2.0
 
 An AI-powered digital forensic investigation portal designed to analyze traffic accident scenes using dashcam/CCTV footage and static images. Built with Python, Flask, MongoDB, and Google's advanced Gemini 2.5 Flash multimodal AI.
@@ -24,20 +25,22 @@ This project transitions complex, multi-model pipelines into a lightning-fast, s
 
 ## ⚙️ Local Installation & Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone [https://github.com/yourusername/oracle-forensic.git](https://github.com/yourusername/oracle-forensic.git)
-   cd oracle-forensic
-Create a virtual environment
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/yourusername/oracle-forensic.git
+cd oracle-forensic
+2. Create a virtual environment
 
 Bash
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
-Install dependencies
+3. Install dependencies
 
 Bash
 pip install -r requirements.txt
-Environment Variables
+4. Environment Variables
+
 Create a .env file in the root directory and add your credentials:
 
 Ini, TOML
@@ -46,7 +49,7 @@ MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/oracle_forensi
 GEMINI_API_KEY=your_google_gemini_api_key
 UPLOAD_DIR=/tmp/uploads
 REPORT_DIR=/tmp/reports
-Run the Application
+5. Run the Application
 
 Bash
 python app.py
