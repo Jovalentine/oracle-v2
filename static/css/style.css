@@ -6,26 +6,26 @@
 
 /* Default Dark Theme */
 :root {
-    --bg-color: #0b1120;
+    --bg-color: #5d1533;
     --card-bg: #172033;
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --accent: #bde90e;
     --accent-gradient: linear-gradient(135deg, #0ea5e9, #8b5cf6);
-    --card-border: rgba(255, 255, 255, 0.1);
+    --card-border: rgb(9, 54, 65);
     --nav-bg: rgba(11, 17, 32, 0.9);
 }
 
 /* Light Theme Overrides */
 body.light-theme {
-    --bg-color: #f8fafc; 
-    --card-bg: #ffffff; 
+    --bg-color: #11420827; 
+    --card-bg: #ffffff65; 
     --text-main: #0f172a; 
     --text-muted: #64748b; 
-    --accent: #0284c7; /* Darker blue for better visibility on white */
+    --accent: #0a87c6; /* Darker blue for better visibility on white */
     --accent-gradient: linear-gradient(135deg, #0284c7, #6d28d9);
-    --card-border: rgba(0, 0, 0, 0.15);
-    --nav-bg: rgba(248, 250, 252, 0.95);
+    --card-border: rgba(0, 0, 0, 0.314);
+    --nav-bg: rgba(23, 126, 230, 0.95);
 }
 
 /* =========================================
@@ -87,6 +87,7 @@ body.light-theme input, body.light-theme select {
   font-weight: 800;
   letter-spacing: 1px;
   background: var(--accent-gradient);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
