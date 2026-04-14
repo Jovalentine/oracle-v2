@@ -7,11 +7,13 @@ from core.video_utils import extract_keyframes
 
 class GeminiForensicPipeline:
     def __init__(self):
-        api_key = os.environ.get("GEMINI_API_KEY")
+        # Fallback to KEY_1 if the general GEMINI_API_KEY is not set
+        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY_1")
         if not api_key:
-            raise ValueError("GEMINI_API_KEY is not set in the .env file.")
+            raise ValueError("GEMINI_API_KEY_1 is not set in the .env file.")
         
-        self.client = genai.Client(api_key=api_key)
+        # Default client for standard uploads (Image/Video Dashboard)
+        self.default_client = genai.Client(api_key=api_key)
         self.model_id = 'gemini-2.5-flash' 
 
         # Lower safety thresholds for Forensic Analysis
@@ -69,12 +71,15 @@ class GeminiForensicPipeline:
             print(f"❌ JSON PARSE ERROR. Raw output was:\n{raw_text}")
             raise e
 
-    def analyze_image(self, image_path: str) -> dict:
-        """Analyzes a single accident image."""
+    def analyze_image(self, image_path: str, api_key: str = None) -> dict:
+        """Analyzes a single accident image. Supports dynamic API key injection."""
         try:
             img = Image.open(image_path)
         except Exception as e:
             raise FileNotFoundError(f"Could not open image: {e}")
+
+        # Setup Client (Use rotated key if provided by Live Surveillance, else use default)
+        client = genai.Client(api_key=api_key) if api_key else self.default_client
 
         prompt = """
         You are an expert digital forensic investigator analyzing a traffic accident scene.
@@ -96,7 +101,7 @@ class GeminiForensicPipeline:
         }
         """
         
-        response = self.client.models.generate_content(
+        response = client.models.generate_content(
             model=self.model_id,
             contents=[img, prompt],
             config=types.GenerateContentConfig(
@@ -107,13 +112,16 @@ class GeminiForensicPipeline:
         )
         return self._parse_response(response)
 
-    def analyze_video(self, video_path: str) -> dict:
-        """Extracts keyframes from a video and asks Gemini to reconstruct the timeline."""
+    def analyze_video(self, video_path: str, api_key: str = None) -> dict:
+        """Extracts keyframes from a video and reconstructs the timeline."""
         try:
             print(f"🎥 Extracting keyframes from {video_path}...")
             frames, fps = extract_keyframes(video_path, max_frames=15)
         except Exception as e:
             raise RuntimeError(f"Video extraction failed: {e}")
+
+        # Setup Client (Use rotated key if provided, else use default)
+        client = genai.Client(api_key=api_key) if api_key else self.default_client
 
         prompt = """
         You are an expert digital forensic investigator analyzing an accident dashcam or CCTV video.
@@ -145,7 +153,7 @@ class GeminiForensicPipeline:
         print(f"⏳ Sending {len(frames)} frames to Gemini API...")
         contents = frames + [prompt]
         
-        response = self.client.models.generate_content(
+        response = client.models.generate_content(
             model=self.model_id,
             contents=contents,
             config=types.GenerateContentConfig(

@@ -13,9 +13,12 @@
             <a href="{{ url_for('new_video_case') }}" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">
                 🎥 New Video Case
             </a>
+            <a href="{{ url_for('live_dashboard') }}" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #ef4444, #f97316); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">
+                🔴 Live Surveillance
+            </a>
         </div>
     </div>
-
+    
     {% if cases %}
         <div class="case-grid">
             {% for case in cases %}
@@ -70,6 +73,7 @@
             <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
                 <a href="{{ url_for('new_case') }}" class="btn" style="width: 200px;">📷 Image Case</a>
                 <a href="{{ url_for('new_video_case') }}" class="btn" style="width: 200px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">🎥 Video Case</a>
+                <a href="{{ url_for('live_dashboard') }}" class="btn" style="width: 200px; background: linear-gradient(135deg, #ef4444, #f97316); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">🔴 Live Surveillance</a>
             </div>
         </div>
     {% endif %}

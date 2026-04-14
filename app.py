@@ -1,23 +1,41 @@
 import os
-import uuid, traceback, tempfile
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, send_file
+import uuid, traceback, tempfile, threading, cv2
+import itertools # For API Key Rotation
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, send_file, Response
+from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from core.db import MongoDB
 from core.gemini_pipeline import GeminiForensicPipeline
 from core.pdf_generator import generate_case_pdf
 
-
 # Initialize Environment & Flask
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "fallback_dev_key")
+
+# Initialize SocketIO for Live Alerts
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Setup Directories
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/tmp/uploads")
 REPORT_DIR = os.getenv("REPORT_DIR", "/tmp/reports")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
+
+# -----------------------------------
+# API KEY ROTATOR SETUP
+# -----------------------------------
+api_keys = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3")
+]
+# Filter out empty keys to be safe
+valid_keys = [key for key in api_keys if key]
+if not valid_keys:
+    print("⚠️ WARNING: No multiple Gemini API keys found in .env! Using default.")
+key_rotator = itertools.cycle(valid_keys) if valid_keys else None
 
 # Initialize Database
 db = MongoDB()
@@ -33,6 +51,90 @@ except Exception as e:
     traceback.print_exc()
     print("="*50 + "\n")
     ai_engine = None
+
+
+# -----------------------------------
+# LIVE SURVEILLANCE ROUTES
+# -----------------------------------
+
+def generate_live_frames():
+    """Reads frames from the test video and triggers background AI analysis."""
+    # Point OpenCV to your downloaded testing video
+    camera = cv2.VideoCapture("test_crash.mp4") 
+    frame_count = 0
+    
+    while True:
+        success, frame = camera.read()
+        if not success:
+            # If the video ends, loop it back to the beginning!
+            camera.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            continue
+            
+        frame_count += 1
+        
+        # Run AI analysis every 300 frames (~10 seconds at 30fps) to optimize API usage
+        if frame_count % 300 == 0 and ai_engine:
+            frame_copy = frame.copy()
+            threading.Thread(target=process_live_frame, args=(frame_copy,)).start()
+
+        # Encode frame for web streaming
+        ret, buffer = cv2.imencode('.jpg', frame)
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+
+def process_live_frame(frame):
+    """Background thread that sends the frame to Gemini and emits FULL live alerts."""
+    try:
+        temp_path = os.path.join(UPLOAD_DIR, "live_temp.jpg")
+        cv2.imwrite(temp_path, frame)
+        
+        # 1. Grab the next API key in the rotation
+        current_api_key = next(key_rotator) if key_rotator else None
+        safe_key_print = f"...{current_api_key[-4:]}" if current_api_key else "DEFAULT"
+        
+        print(f"🕵️ Analyzing Live Frame using Key ending in {safe_key_print}")
+        
+        # 2. Pass the rotated key to your AI engine
+        analysis = ai_engine.analyze_image(temp_path, api_key=current_api_key)
+        
+        # 3. Emit alert if severity > 50 or a collision is detected
+        severity = int(analysis.get("severity_score", 0))
+        if severity > 50 or analysis.get("collision_type", "N/A") not in ["N/A", "Unknown", "Safety Blocked"]:
+            
+            # ---> SEND THE ENTIRE AI JSON OUTPUT TO THE DASHBOARD <---
+            socketio.emit('live_alert', analysis)
+            
+            # Save the live event to MongoDB for historical review
+            db.save_case({
+                "case_id": f"LIVE-{uuid.uuid4().hex[:6]}",
+                "user": "SYSTEM_AUTO",
+                "type": "live_event",
+                "filename": "live_temp.jpg",
+                "analysis": analysis
+            })
+    except Exception as e:
+        print(f"Live Analysis Error: {e}")
+
+@app.route("/live")
+def live_dashboard():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    return render_template("live_dashboard.html")
+
+@app.route("/video_feed")
+def video_feed():
+    return Response(generate_live_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route("/api/telemetry", methods=["POST"])
+def live_telemetry():
+    """Endpoint for IoT vehicle data ingestion (Brakes, Speed)."""
+    data = request.json
+    if data and data.get("speed", 0) > 85:
+        socketio.emit('telemetry_alert', {
+            'msg': f"High Speed Alert: Vehicle {data.get('vehicle_id', 'Unknown')} at {data['speed']} km/h"
+        })
+    return {"status": "success"}, 200
+
 
 # -----------------------------------
 # AUTHENTICATION ROUTES
@@ -83,6 +185,7 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
 
 # -----------------------------------
 # CORE APPLICATION ROUTES
@@ -145,6 +248,7 @@ def new_case():
 
     return render_template("new_case.html")
 
+
 # -----------------------------------
 # REPORT & ASSET ROUTES
 # -----------------------------------
@@ -177,17 +281,15 @@ def export_pdf(case_id):
     # Send to user to download
     return send_file(pdf_path, as_attachment=True)
 
+
 # -----------------------------------
 # VIDEO ANALYSIS ROUTE 
 # -----------------------------------
 
-# Add this near the top of app.py to help with security
 ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv'}
 
 def allowed_video(filename):
     return os.path.splitext(filename.lower())[1] in ALLOWED_VIDEO_EXTENSIONS
-
-# ...
 
 @app.route("/new-video", methods=["GET", "POST"])
 def new_video_case():
@@ -235,6 +337,7 @@ def new_video_case():
                 return redirect(request.url)
 
     return render_template("new_video_case.html")
+
 @app.route("/delete/<case_id>", methods=["POST"])
 def delete_case(case_id):
     if "user" not in session:
@@ -266,4 +369,5 @@ def uploaded_file(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
 if __name__ == "__main__":
-    app.run(port=5001, debug=True)
+    # Ensure you are using socketio.run for WebSockets
+    socketio.run(app, port=5001, debug=True)

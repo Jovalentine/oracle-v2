@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Live Surveillance - Oracle Forensic{% endblock %}
+
+{% block content %}
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<div class="reveal">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0;">🔴 Live Intersection Monitoring</h2>
+        <span class="tag" style="background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid #22c55e;">
+            System Active
+        </span>
+    </div>
+
+    <div class="report-grid" style="grid-template-columns: 1fr 1fr; gap: 25px;">
+        <div class="card" style="padding: 20px; height: fit-content;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--text-muted);">Camera Feed: Intersection 4A</h3>
+            <div class="image-container" style="position: relative; overflow: hidden; border-radius: 8px;">
+                <img src="{{ url_for('video_feed') }}" style="width: 100%; display: block; border: 2px solid var(--card-border);" alt="Live Feed">
+                <div class="scan-line" style="position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: rgba(239, 68, 68, 0.5); box-shadow: 0 0 10px rgba(239, 68, 68, 1); animation: scan 3s infinite linear;"></div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 20px; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.8);">
+            <h3 style="margin-top: 0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; color: var(--accent);">
+                Real-Time Forensic Dossiers
+            </h3>
+            
+            <div id="alerts-container" style="flex: 1; overflow-y: auto; max-height: 600px; padding-right: 10px;">
+                <p style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-top: 50px;" id="waiting-msg">
+                    <span style="font-size: 2rem;">📡</span><br>
+                    Monitoring video stream for collisions...<br>Full AI reports will appear here.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Full Dossier Card Styles */
+    .dossier-card {
+        background: rgba(30, 41, 59, 0.9);
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        border-left: 6px solid #8b5cf6;
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 8px;
+        animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .dossier-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 12px;
+        margin-bottom: 15px;
+    }
+
+    .meta-tags {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+
+    .meta-tag {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .vehicle-box {
+        background: rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 10px;
+        border-radius: 6px;
+        margin-top: 10px;
+    }
+    
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scan {
+        0% { top: -10%; }
+        100% { top: 110%; }
+    }
+</style>
+
+<script>
+    const socket = io();
+    const alertsContainer = document.getElementById('alerts-container');
+    const waitingMsg = document.getElementById('waiting-msg');
+
+    // Receive the FULL JSON object from app.py
+    socket.on('live_alert', function(aiData) {
+        if (waitingMsg) waitingMsg.style.display = 'none';
+        
+        // 1. Format Vehicles & Fault
+        let vehiclesHtml = '';
+        if (aiData.vehicles_involved && aiData.vehicles_involved.length > 0) {
+            vehiclesHtml = '<h4 style="margin: 15px 0 5px 0; color: #cbd5e1;">Vehicles Involved:</h4>';
+            aiData.vehicles_involved.forEach(v => {
+                let faultColor = v.fault_percentage > 50 ? '#ef4444' : '#f97316';
+                vehiclesHtml += `
+                    <div class="vehicle-box">
+                        <strong style="color: ${faultColor};">🚘 ${v.type.toUpperCase()} (FAULT: ${v.fault_percentage}%)</strong>
+                        <p style="font-size: 0.85rem; color: #94a3b8; margin: 5px 0 0 0;">${v.reasoning}</p>
+                    </div>`;
+            });
+        }
+
+        // 2. Format License Plates
+        let platesHtml = '';
+        if (aiData.license_plates_detected && aiData.license_plates_detected.length > 0) {
+            platesHtml = `
+                <span class="meta-tag" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8;">
+                    🎫 Plates: ${aiData.license_plates_detected.join(', ')}
+                </span>
+            `;
+        }
+
+        // 3. Format Pedestrian Alert
+        let pedestrianHtml = '';
+        if (aiData.pedestrians_detected) {
+            pedestrianHtml = `
+                <span class="meta-tag" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444;">
+                    🚶‍♂️ PEDESTRIAN DETECTED
+                </span>
+            `;
+        }
+
+        // 4. Determine Header Color based on Severity
+        let severityColor = aiData.severity_score > 70 ? '#ef4444' : (aiData.severity_score > 40 ? '#eab308' : '#38bdf8');
+
+        // 5. Build the Complete HTML Dossier Card
+        const fullDossierHtml = `
+            <div class="dossier-card" style="border-left-color: ${severityColor};">
+                <div class="dossier-header">
+                    <strong style="color: ${severityColor}; font-size: 1.1rem; letter-spacing: 1px;">
+                        ${aiData.collision_type.toUpperCase()} COLLISION
+                    </strong>
+                    <span style="background: ${severityColor}; color: #1e293b; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.85rem;">
+                        SEVERITY: ${aiData.severity_score}/100
+                    </span>
+                </div>
+
+                <div class="meta-tags">
+                    ${pedestrianHtml}
+                    ${platesHtml}
+                </div>
+                
+                <p style="font-size: 0.95rem; color: #e2e8f0; margin-top: 0; margin-bottom: 12px; line-height: 1.5; font-weight: bold;">
+                    ${aiData.scene_summary}
+                </p>
+                
+                <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 6px; font-size: 0.85rem; color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); text-align: justify;">
+                    <strong style="color: #f8fafc; display: block; margin-bottom: 8px;">Full Investigative Narrative:</strong>
+                    ${aiData.investigative_narrative}
+                </div>
+                
+                ${vehiclesHtml}
+            </div>
+        `;
+        
+        // Add the new FULL dossier to the TOP of the feed
+        alertsContainer.insertAdjacentHTML('afterbegin', fullDossierHtml);
+    });
+
+    // Listen for IoT Telemetry Alerts (Unchanged)
+    socket.on('telemetry_alert', function(data) {
+        if (waitingMsg) waitingMsg.style.display = 'none';
+        const alertHtml = `
+            <div style="background: rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308; padding: 12px; margin-bottom: 15px; border-radius: 6px;">
+                <strong style="color: #eab308;">📡 IoT TELEMETRY</strong><br>
+                <span style="font-size: 0.85rem; color: var(--text-main);">${data.msg}</span>
+            </div>
+        `;
+        alertsContainer.insertAdjacentHTML('afterbegin', alertHtml);
+    });
+</script>
+{% endblock %}
