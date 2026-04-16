@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -14,7 +15,20 @@ class GeminiForensicPipeline:
         
         # Default client for standard uploads (Image/Video Dashboard)
         self.default_client = genai.Client(api_key=api_key)
-        self.model_id = 'gemini-2.5-flash' 
+        
+        # YOUR MODEL FALLBACK CHAIN (Updated for Gemini 2.5)
+        self.model_priority = [
+            'gemini-2.5-flash',       # 1. First choice (High performance)
+            'gemini-2.5-flash-lite',  # 2. Fast/Lower demand fallback
+            'gemini-2.5-pro',         # 3. Heavy lifting fallback
+            'gemini-2.0-flash'        # 4. Ultra-stable last resort
+        ]
+        
+        # Model fallback chain for IMAGE analysis
+        self.image_models = self.model_priority
+        
+        # Model fallback chain for VIDEO analysis (only models that support generateContent)
+        self.video_models = self.model_priority
 
         # Lower safety thresholds for Forensic Analysis
         self.safety = [
@@ -31,7 +45,6 @@ class GeminiForensicPipeline:
     def _parse_response(self, response) -> dict:
         """Safely extracts JSON, handling safety blocks and markdown formatting."""
         try:
-            # If safety filter blocked it, accessing .text throws a ValueError
             raw_text = response.text
         except ValueError:
             print("⚠️ SAFETY BLOCK: Gemini refused to process this image.")
@@ -45,7 +58,6 @@ class GeminiForensicPipeline:
                 "investigative_narrative": "The AI refused to analyze this evidence due to safety constraints. Try a less graphic angle."
             }
 
-        # Clean markdown formatting if Gemini wrapped it
         if raw_text.startswith("```"):
             raw_text = raw_text.strip("` \n")
             if raw_text.startswith("json"):
@@ -53,32 +65,26 @@ class GeminiForensicPipeline:
 
         try:
             result_dict = json.loads(raw_text)
-            
-            # Print to terminal so you can see exactly what the AI found!
             print("\n✅ --- GEMINI AI RAW OUTPUT ---")
             print(json.dumps(result_dict, indent=2))
             print("------------------------------\n")
             
-            # Failsafe: if Gemini nested the JSON inside a "response" key
             if "scene_summary" not in result_dict:
                 for val in result_dict.values():
                     if isinstance(val, dict) and "scene_summary" in val:
                         return val
-                        
             return result_dict
-            
         except json.JSONDecodeError as e:
             print(f"❌ JSON PARSE ERROR. Raw output was:\n{raw_text}")
             raise e
 
     def analyze_image(self, image_path: str, api_key: str = None) -> dict:
-        """Analyzes a single accident image. Supports dynamic API key injection."""
+        """Analyzes a single accident image with Model Fallback logic."""
         try:
             img = Image.open(image_path)
         except Exception as e:
             raise FileNotFoundError(f"Could not open image: {e}")
 
-        # Setup Client (Use rotated key if provided by Live Surveillance, else use default)
         client = genai.Client(api_key=api_key) if api_key else self.default_client
 
         prompt = """
@@ -101,26 +107,38 @@ class GeminiForensicPipeline:
         }
         """
         
-        response = client.models.generate_content(
-            model=self.model_id,
-            contents=[img, prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.2,
-                safety_settings=self.safety
-            ),
-        )
-        return self._parse_response(response)
+        # TRY EACH IMAGE MODEL IN THE CHAIN
+        for model_id in self.image_models:
+            try:
+                print(f"🕵️ Attempting image analysis with: {model_id}")
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=[img, prompt],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.2,
+                        safety_settings=self.safety
+                    ),
+                )
+                return self._parse_response(response)
+            except Exception as e:
+                error_str = str(e)
+                if any(code in error_str for code in ["503", "429", "404"]):
+                    print(f"⚠️ {model_id} is not available (busy or not supported). Trying next fallback model...")
+                    time.sleep(1)
+                    continue
+                else:
+                    raise e
+        return {"error": "All models in the fallback chain are currently unavailable."}
 
     def analyze_video(self, video_path: str, api_key: str = None) -> dict:
-        """Extracts keyframes from a video and reconstructs the timeline."""
+        """Extracts keyframes and reconstructs the timeline with Model Fallback logic."""
         try:
             print(f"🎥 Extracting keyframes from {video_path}...")
             frames, fps = extract_keyframes(video_path, max_frames=15)
         except Exception as e:
             raise RuntimeError(f"Video extraction failed: {e}")
 
-        # Setup Client (Use rotated key if provided, else use default)
         client = genai.Client(api_key=api_key) if api_key else self.default_client
 
         prompt = """
@@ -150,19 +168,30 @@ class GeminiForensicPipeline:
         }
         """
         
-        print(f"⏳ Sending {len(frames)} frames to Gemini API...")
-        contents = frames + [prompt]
-        
-        response = client.models.generate_content(
-            model=self.model_id,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.2,
-                safety_settings=self.safety
-            ),
-        )
-        
-        result_dict = self._parse_response(response)
-        result_dict["video_meta"] = {"fps": round(fps, 1), "frames_analyzed": len(frames)}
-        return result_dict
+        # TRY EACH VIDEO MODEL IN THE CHAIN
+        for model_id in self.video_models:
+            try:
+                print(f"🎥 Attempting video analysis with: {model_id}")
+                contents = frames + [prompt]
+                
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.2,
+                        safety_settings=self.safety
+                    ),
+                )
+                
+                result_dict = self._parse_response(response)
+                result_dict["video_meta"] = {"fps": round(fps, 1), "frames_analyzed": len(frames), "model_used": model_id}
+                return result_dict
+            except Exception as e:
+                error_str = str(e)
+                if any(code in error_str for code in ["503", "429", "404"]):
+                    print(f"⚠️ {model_id} is not available (busy or not supported). Trying next fallback model...")
+                    time.sleep(2)
+                    continue
+                raise e
+        return {"error": "Video forensic analysis failed on all models in the fallback chain."}

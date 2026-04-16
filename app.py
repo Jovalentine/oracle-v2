@@ -1,6 +1,7 @@
 import os
 import uuid, traceback, tempfile, threading, cv2
 import itertools # For API Key Rotation
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, send_file, Response
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
@@ -39,6 +40,9 @@ key_rotator = itertools.cycle(valid_keys) if valid_keys else None
 
 # Initialize Database
 db = MongoDB()
+
+# Track active users on live dashboard
+active_live_viewer = None
 
 # Initialize AI Engine
 try:
@@ -104,13 +108,15 @@ def process_live_frame(frame):
             # ---> SEND THE ENTIRE AI JSON OUTPUT TO THE DASHBOARD <---
             socketio.emit('live_alert', analysis)
             
-            # Save the live event to MongoDB for historical review
+            # Save the live event to MongoDB with active viewer or as global live surveillance
+            assigned_user = active_live_viewer if active_live_viewer else "SYSTEM_AUTO"
             db.save_case({
-                "case_id": f"LIVE-{uuid.uuid4().hex[:6]}",
-                "user": "SYSTEM_AUTO",
-                "type": "live_event",
+                "case_id": f"LIVE-{uuid.uuid4().hex[:8]}",
+                "user": assigned_user,
+                "type": "live_surveillance",
                 "filename": "live_temp.jpg",
-                "analysis": analysis
+                "analysis": analysis,
+                "timestamp": datetime.utcnow()
             })
     except Exception as e:
         print(f"Live Analysis Error: {e}")
@@ -367,6 +373,34 @@ def delete_case(case_id):
 def uploaded_file(filename):
     # Route to serve the raw images for the frontend to display
     return send_from_directory(UPLOAD_DIR, filename)
+
+# -----------------------------------
+# WEBSOCKET HANDLERS FOR LIVE SURVEILLANCE
+# -----------------------------------
+
+@socketio.on('connect')
+def handle_connect(auth):
+    """Track when a user connects to the live dashboard."""
+    global active_live_viewer
+    try:
+        user = session.get("user")
+        if user:
+            active_live_viewer = user
+            print(f"✅ Live Surveillance User Connected: {user}")
+    except Exception as e:
+        print(f"Connection tracking error: {e}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Track when a user disconnects from the live dashboard."""
+    global active_live_viewer
+    try:
+        user = session.get("user")
+        if user and active_live_viewer == user:
+            active_live_viewer = None
+            print(f"❌ Live Surveillance User Disconnected: {user}")
+    except Exception as e:
+        print(f"Disconnect tracking error: {e}")
 
 if __name__ == "__main__":
     # Ensure you are using socketio.run for WebSockets

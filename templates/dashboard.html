@@ -26,7 +26,7 @@
                 {% set summary = analysis.scene_summary | default('No AI summary data available for this case.') %}
                 {% set severity = analysis.severity_score | default(0) | int %}
                 
-                <div class="card case-card">
+                <div class="card case-card {% if case.type == 'live_surveillance' %}live-surveillance{% endif %}">
                     <div class="case-header">
                         <span class="case-id">#{{ case.case_id }}</span>
                         <span class="case-date">{{ case.created_at.strftime('%Y-%m-%d') }}</span>
@@ -42,7 +42,11 @@
 
                     <div class="tags">
                         <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-main);">
-                            {{ case.type | default('IMAGE') | upper }}
+                            {% if case.type == 'live_surveillance' %}
+                                🔴 LIVE SURVEILLANCE
+                            {% else %}
+                                {{ case.type | default('IMAGE') | upper }}
+                            {% endif %}
                         </span>
                         <span class="tag">Severity: {{ severity }}/100</span>
                         {% if analysis.pedestrians_detected %}
@@ -90,6 +94,15 @@
         flex-direction: column;
         justify-content: space-between;
         padding: 25px;
+    }
+    .case-card.live-surveillance {
+        border-left: 5px solid #ef4444;
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+        animation: liveGlow 2s ease-in-out infinite;
+    }
+    @keyframes liveGlow {
+        0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+        50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.4); }
     }
     .case-header {
         display: flex;
